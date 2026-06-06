@@ -1,0 +1,77 @@
+﻿@page "/doctors"
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Лікарі клініки</PageTitle>
+
+<h3>Список лікарів</h3>
+
+@if (doctors == null)
+{
+    <div class="alert alert-info">Завантаження даних з сервера...</div>
+}
+else if (!doctors.Any())
+{
+    <div class="alert alert-warning">У базі поки немає жодного лікаря.</div>
+}
+else
+{
+    <table class="table table-striped table-hover mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Ім'я</th>
+                <th>Прізвище</th>
+                <th>Спеціалізація</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var doctor in doctors)
+            {
+                <tr>
+                    <td>@doctor.Id</td>
+                    <td>@doctor.FirstName</td>
+                    <td>@doctor.LastName</td>
+                    <td>@doctor.Specialization</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<DoctorModel> doctors;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. Дістаємо наш збережений токен
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+            // 2. Кладемо його в заголовок HttpClient
+            if (!string.IsNullOrEmpty(token))
+            {
+                Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+
+            // 3. Робимо GET запит до твого API
+            doctors = await Http.GetFromJsonAsync<List<DoctorModel>>("https://localhost:7012/api/Doctors");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка завантаження лікарів: {ex.Message}");
+        }
+    }
+
+    // Тимчасова модель для відображення даних.
+    // Вона МАЄ збігатися з тим, що повертає твій бекенд!
+    public class DoctorModel
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Specialization { get; set; }
+    }
+}

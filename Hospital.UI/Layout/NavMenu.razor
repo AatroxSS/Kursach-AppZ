@@ -1,0 +1,88 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Hospital App</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Головна
+            </NavLink>
+        </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="doctors">
+                        <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Лікарі
+                    </NavLink>
+                </div>
+                
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="patients">
+                        <span class="bi bi-person-lines-fill-nav-menu" aria-hidden="true"></span> Пацієнти
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="appointments">
+                        <span class="bi bi-calendar-check-fill-nav-menu" aria-hidden="true"></span> Прийоми
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3 mt-4">
+                    <button class="nav-link btn btn-link" style="color: #ff7675; cursor: pointer; text-align: left; width: 100%; border: none; background: none;" @onclick="Logout">
+                        <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Вийти
+                    </button>
+                </div>
+            </Authorized>
+              <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">
+                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Увійти
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="register">
+                        <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> Реєстрація
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+    </nav>
+</div>
+
+@code {
+@using Microsoft.AspNetCore.Components.Authorization
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    [Inject] public IJSRuntime JS { get; set; }
+    [Inject] public AuthenticationStateProvider AuthStateProvider { get; set; }
+    [Inject] public NavigationManager NavManager { get; set; }
+
+    private async Task Logout()
+    {
+        // Видаляємо токен з пам'яті браузера
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        
+        // Повідомляємо додаток, що користувач вийшов
+        ((Hospital.UI.Providers.CustomAuthStateProvider)AuthStateProvider).MarkUserAsLoggedOut();
+        
+        // Перенаправляємо на сторінку входу
+        NavManager.NavigateTo("/login");
+    }
+}

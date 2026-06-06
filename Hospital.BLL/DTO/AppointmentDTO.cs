@@ -6,11 +6,20 @@ namespace Hospital.BLL.DTO
     {
         public int Id { get; set; }
         public int DoctorId { get; set; }
-        public string DoctorFullName { get; set; }
+
+        // Додали знаки питання, щоб поля не були обов'язковими при POST-запитах
+        public string? DoctorFullName { get; set; }
+
         public int PatientId { get; set; }
-        public string PatientFullName { get; set; }
+
+        // Додали знак питання
+        public string? PatientFullName { get; set; }
+
         public DateTime AppointmentDate { get; set; }
-        public string Notes { get; set; }
+
+        // Нотатки теж можуть бути порожніми
+        public string? Notes { get; set; }
+
         public bool IsCompleted { get; set; }
     }
 }

@@ -1,0 +1,86 @@
+﻿@page "/register"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<PageTitle>Реєстрація</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h3 class="card-title text-center mb-4">Створити акаунт</h3>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label">Ім'я:</label>
+                        <input type="text" class="form-control" @bind="registerModel.FirstName" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Прізвище:</label>
+                        <input type="text" class="form-control" @bind="registerModel.LastName" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email:</label>
+                        <input type="email" class="form-control" @bind="registerModel.Email" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Пароль:</label>
+                        <input type="password" class="form-control" @bind="registerModel.Password" />
+                    </div>
+
+                    <button class="btn btn-success w-100" @onclick="HandleRegister">Зареєструватись</button>
+
+                    <div class="text-center mt-3">
+                        <a href="/login" class="text-decoration-none">Вже є акаунт? Увійти</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel registerModel = new();
+    private string errorMessage = "";
+
+    private async Task HandleRegister()
+    {
+        errorMessage = "";
+        try
+        {
+            var response = await Http.PostAsJsonAsync("https://localhost:7012/api/Auth/register", registerModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Якщо успішно - кидаємо на сторінку логіну
+                NavManager.NavigateTo("/login");
+            }
+            else
+            {
+                var errorResult = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Помилка реєстрації: {errorResult}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Помилка з'єднання з сервером.";
+        }
+    }
+
+    public class RegisterModel
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}
