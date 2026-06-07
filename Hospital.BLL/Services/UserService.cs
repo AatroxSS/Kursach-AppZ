@@ -29,8 +29,33 @@ namespace Hospital.BLL.Services
             var user = _context.Users.Find(userId);
             if (user != null)
             {
-                // Використовуємо твій Enum Role
                 user.Role = Enum.Parse<Role>(newRole);
+
+                if (user.Role == Role.Manager)
+                {
+                    // Створюємо лікаря, якщо його ще немає
+                    if (!_context.Doctors.Any(d => d.UserId == userId))
+                    {
+                        _context.Doctors.Add(new Doctor { UserId = userId, FirstName = "Новий", LastName = "Лікар", Specialization = "Не вказано" });
+                    }
+
+                    // ВИДАЛЯЄМО користувача з таблиці пацієнтів (щоб не було дублювання)
+                    var patient = _context.Patients.FirstOrDefault(p => p.UserId == userId);
+                    if (patient != null) _context.Patients.Remove(patient);
+                }
+                else if (user.Role == Role.RegisteredUser)
+                {
+                    // Створюємо пацієнта, якщо його ще немає
+                    if (!_context.Patients.Any(p => p.UserId == userId))
+                    {
+                        _context.Patients.Add(new Patient { UserId = userId, FirstName = "Новий", LastName = "Пацієнт", DateOfBirth = DateTime.UtcNow });
+                    }
+
+                    // ВИДАЛЯЄМО з таблиці лікарів
+                    var doctor = _context.Doctors.FirstOrDefault(d => d.UserId == userId);
+                    if (doctor != null) _context.Doctors.Remove(doctor);
+                }
+
                 _context.SaveChanges();
             }
         }

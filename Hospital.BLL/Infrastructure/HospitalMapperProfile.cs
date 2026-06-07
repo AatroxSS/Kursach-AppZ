@@ -10,7 +10,9 @@ namespace Hospital.BLL.Infrastructure
     {
         public HospitalMapperProfile()
         {
-            CreateMap<Doctor, DoctorDTO>().ReverseMap();
+            CreateMap<Doctor, DoctorDTO>()
+    .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.User.FirstName))
+    .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.User.LastName));
             CreateMap<Patient, PatientDTO>().ReverseMap();
 
             CreateMap<Appointment, AppointmentDTO>()

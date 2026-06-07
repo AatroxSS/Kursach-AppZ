@@ -100,12 +100,39 @@ namespace Hospital.BLL.Services
 
         public void ChangeUserRole(int id, string newRole)
         {
-            var user = _unitOfWork.Users.GetById(id); // ВИПРАВЛЕНО Get -> GetById
+            var user = _unitOfWork.Users.GetById(id);
             if (user == null) throw new Exception("Користувача не знайдено.");
+
             if (Enum.TryParse<Role>(newRole, out var parsedRole))
             {
                 user.Role = parsedRole;
                 _unitOfWork.Users.Update(user);
+
+                if (parsedRole == Role.Manager)
+                {
+                    // Додаємо лікаря
+                    if (!_unitOfWork.Doctors.Find(d => d.UserId == id).Any())
+                    {
+                        _unitOfWork.Doctors.Create(new Doctor { UserId = id, FirstName = "Новий", LastName = "Лікар", Specialization = "Не вказано" });
+                    }
+
+                    // Чистимо таблицю пацієнтів
+                    var patients = _unitOfWork.Patients.Find(p => p.UserId == id).ToList();
+                    foreach (var p in patients) _unitOfWork.Patients.Delete(p.Id);
+                }
+                else if (parsedRole == Role.RegisteredUser)
+                {
+                    // Додаємо пацієнта
+                    if (!_unitOfWork.Patients.Find(p => p.UserId == id).Any())
+                    {
+                        _unitOfWork.Patients.Create(new Patient { UserId = id, FirstName = "Новий", LastName = "Пацієнт", DateOfBirth = DateTime.UtcNow });
+                    }
+
+                    // Чистимо таблицю лікарів
+                    var doctors = _unitOfWork.Doctors.Find(d => d.UserId == id).ToList();
+                    foreach (var d in doctors) _unitOfWork.Doctors.Delete(d.Id);
+                }
+
                 _unitOfWork.Save();
             }
         }
