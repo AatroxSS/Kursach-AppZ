@@ -3,10 +3,12 @@ using Hospital.BLL.Interfaces;
 using Hospital.DAL.Entities;
 using Hospital.DAL.Interfaces;
 using Microsoft.IdentityModel.Tokens;
+using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
-using System.Collections.Generic;
 
 namespace Hospital.BLL.Services
 {
@@ -44,15 +46,15 @@ namespace Hospital.BLL.Services
                 Role = parsedRole
             };
 
-            _unitOfWork.Users.Add(user);
+            _unitOfWork.Users.Create(user); // ВИПРАВЛЕНО Add -> Create
 
             if (parsedRole == Role.RegisteredUser)
             {
-                _unitOfWork.Patients.Add(new Patient { FirstName = dto.FirstName, LastName = dto.LastName, User = user });
+                _unitOfWork.Patients.Create(new Patient { FirstName = dto.FirstName, LastName = dto.LastName, DateOfBirth = DateTime.UtcNow.Date, User = user }); // ВИПРАВЛЕНО Add -> Create
             }
             else if (parsedRole == Role.Manager)
             {
-                _unitOfWork.Doctors.Add(new Doctor { FirstName = dto.FirstName, LastName = dto.LastName, User = user });
+                _unitOfWork.Doctors.Create(new Doctor { FirstName = dto.FirstName, LastName = dto.LastName, Specialization = "Лікар загальної практики", User = user }); // ВИПРАВЛЕНО Add -> Create
             }
 
             _unitOfWork.Save();
@@ -98,7 +100,7 @@ namespace Hospital.BLL.Services
 
         public void ChangeUserRole(int id, string newRole)
         {
-            var user = _unitOfWork.Users.Get(id);
+            var user = _unitOfWork.Users.GetById(id); // ВИПРАВЛЕНО Get -> GetById
             if (user == null) throw new Exception("Користувача не знайдено.");
             if (Enum.TryParse<Role>(newRole, out var parsedRole))
             {
@@ -110,7 +112,7 @@ namespace Hospital.BLL.Services
 
         public void DeleteUser(int id)
         {
-            var user = _unitOfWork.Users.Get(id);
+            var user = _unitOfWork.Users.GetById(id); // ВИПРАВЛЕНО Get -> GetById
             if (user != null)
             {
                 _unitOfWork.Users.Delete(id);

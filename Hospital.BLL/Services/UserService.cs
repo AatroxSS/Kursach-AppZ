@@ -1,4 +1,4 @@
-﻿using Hospital.BLL.DTOs;
+﻿using Hospital.BLL.DTO;
 using Hospital.BLL.Interfaces;
 using Hospital.DAL.EF;
 using Hospital.DAL.Entities;

@@ -1,5 +1,5 @@
 ﻿using Hospital.DAL.Entities;
-using Microsoft.EntityFrameworkCore; 
+using Microsoft.EntityFrameworkCore;
 
 namespace Hospital.DAL.EF
 {
@@ -12,7 +12,7 @@ namespace Hospital.DAL.EF
 
         public HospitalDbContext(DbContextOptions<HospitalDbContext> options) : base(options)
         {
-            Database.EnsureCreated();
+            // Рядок Database.EnsureCreated(); ВИДАЛЕНО, щоб працювали міграції
         }
     }
 }
