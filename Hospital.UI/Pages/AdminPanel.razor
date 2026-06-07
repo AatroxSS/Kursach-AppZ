@@ -1,0 +1,416 @@
+@page "/admin"
+@attribute [Authorize(Roles = "Administrator")]
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Адмін-панель</PageTitle>
+
+<section class="section-header">
+    <div>
+        <span class="eyebrow">Керування системою</span>
+        <h1>Панель адміністратора</h1>
+        <p>Створення користувачів, зміна ролей, перегляд лікарів і пацієнтів.</p>
+    </div>
+    <button class="btn btn-soft" @onclick="LoadAll">Оновити</button>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+}
+
+<div class="dashboard-grid">
+    <section class="stat-card">
+        <span>Користувачі</span>
+        <strong>@users.Count</strong>
+    </section>
+    <section class="stat-card">
+        <span>Лікарі</span>
+        <strong>@doctors.Count</strong>
+    </section>
+    <section class="stat-card">
+        <span>Пацієнти</span>
+        <strong>@patients.Count</strong>
+    </section>
+</div>
+
+<section class="panel mt-4">
+    <div class="panel-header">
+        <h2>Створити користувача</h2>
+        <span class="badge-soft">роль задається одразу після створення</span>
+    </div>
+
+    <div class="form-grid admin-create-grid">
+        <label>
+            Email
+            <input class="form-control" @bind="newUser.Email" />
+        </label>
+
+        <label>
+            Пароль
+            <input class="form-control" type="password" @bind="newUser.Password" />
+        </label>
+
+        <label>
+            Ім'я
+            <input class="form-control" @bind="newUser.FirstName" />
+        </label>
+
+        <label>
+            Прізвище
+            <input class="form-control" @bind="newUser.LastName" />
+        </label>
+
+        <label>
+            Роль
+            <select class="form-select" @bind="newUserRole">
+                @foreach (var role in roles)
+                {
+                    <option value="@role">@RoleLabel(role)</option>
+                }
+            </select>
+        </label>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" @onclick="CreateUser" disabled="@isBusy">
+                @(isBusy ? "Створення..." : "Створити")
+            </button>
+        </div>
+    </div>
+</section>
+
+<section class="panel mt-4">
+    <div class="panel-header">
+        <h2>Користувачі системи</h2>
+        <span class="badge-soft">@users.Count</span>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-card">Завантаження користувачів...</div>
+    }
+    else if (!users.Any())
+    {
+        <div class="empty-state compact">
+            <div class="empty-icon">👥</div>
+            <h3>Користувачів немає</h3>
+            <p>Створіть першого користувача через форму вище.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table clean-table align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Користувач</th>
+                        <th>Ім'я</th>
+                        <th>Поточна роль</th>
+                        <th>Нова роль</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users.OrderBy(u => u.Id))
+                    {
+                        <tr>
+                            <td>#@user.Id</td>
+                            <td>
+                                <strong>@user.Email</strong>
+                            </td>
+                            <td>@DisplayName(user)</td>
+                            <td><span class="role-pill @user.Role.ToLowerInvariant()">@RoleLabel(user.Role)</span></td>
+                            <td>
+                                <select class="form-select form-select-sm"
+                                        value="@GetSelectedRole(user)"
+                                        @onchange="e => SetSelectedRole(user.Id, e.Value?.ToString())">
+                                    <option value="">Змінити роль...</option>
+                                    @foreach (var role in roles)
+                                    {
+                                        <option value="@role">@RoleLabel(role)</option>
+                                    }
+                                </select>
+                            </td>
+                            <td class="text-end actions-cell">
+                                <button class="btn btn-outline-primary btn-sm" @onclick="() => SaveRole(user)">Зберегти</button>
+                                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteUser(user)">Видалити</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<div class="content-grid mt-4">
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Зареєстровані лікарі</h2>
+            <span class="badge-soft">@doctors.Count</span>
+        </div>
+
+        @if (!doctors.Any())
+        {
+            <p class="muted">Лікарів поки немає.</p>
+        }
+        else
+        {
+            <div class="mini-list">
+                @foreach (var doctor in doctors.OrderBy(d => d.LastName))
+                {
+                    <a href="/doctor/@doctor.Id" class="mini-list-item">
+                        <span class="doctor-avatar small">@GetInitials(doctor)</span>
+                        <span>
+                            <strong>@doctor.FullName</strong>
+                            <small>@doctor.Specialization · ID @doctor.Id</small>
+                        </span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Пацієнти</h2>
+            <span class="badge-soft">@patients.Count</span>
+        </div>
+
+        @if (!patients.Any())
+        {
+            <p class="muted">Пацієнтів поки немає.</p>
+        }
+        else
+        {
+            <div class="mini-list">
+                @foreach (var patient in patients.OrderBy(p => p.LastName))
+                {
+                    <div class="mini-list-item">
+                        <span class="avatar light">@GetInitials(patient)</span>
+                        <span>
+                            <strong>@patient.FullName</strong>
+                            <small>ID @patient.Id · User @patient.UserId</small>
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly string[] roles = ["Administrator", "Manager", "RegisteredUser"];
+
+    private List<UserRowModel> users = new();
+    private List<DoctorModel> doctors = new();
+    private List<PatientModel> patients = new();
+    private Dictionary<int, string> selectedRoles = new();
+    private RegisterUserModel newUser = new();
+    private string newUserRole = "RegisteredUser";
+    private string message = "";
+    private bool isError;
+    private bool isLoading = true;
+    private bool isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAll();
+    }
+
+    private async Task LoadAll()
+    {
+        isLoading = true;
+        message = "";
+        isError = false;
+
+        try
+        {
+            await AttachToken();
+
+            users = await Http.GetFromJsonAsync<List<UserRowModel>>("api/Users") ?? new();
+            doctors = await Http.GetFromJsonAsync<List<DoctorModel>>("api/Doctors") ?? new();
+            patients = await Http.GetFromJsonAsync<List<PatientModel>>("api/Patients") ?? new();
+
+            selectedRoles = users.ToDictionary(u => u.Id, _ => "");
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Не вдалося завантажити дані: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CreateUser()
+    {
+        isBusy = true;
+        message = "";
+        isError = false;
+
+        try
+        {
+            await AttachToken();
+
+            var response = await Http.PostAsJsonAsync("api/Auth/register", newUser);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                isError = true;
+                message = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    message = "Не вдалося створити користувача.";
+                }
+                return;
+            }
+
+            await LoadAll();
+
+            var created = users.FirstOrDefault(u => u.Email.Equals(newUser.Email, StringComparison.OrdinalIgnoreCase));
+
+            if (created is not null && newUserRole != "RegisteredUser")
+            {
+                var roleResponse = await Http.PostAsJsonAsync($"api/Users/{created.Id}/role", newUserRole);
+                if (!roleResponse.IsSuccessStatusCode)
+                {
+                    isError = true;
+                    message = $"Користувача створено, але роль не змінено: {await roleResponse.Content.ReadAsStringAsync()}";
+                    return;
+                }
+            }
+
+            message = $"Користувача {newUser.Email} створено.";
+            newUser = new();
+            newUserRole = "RegisteredUser";
+            await LoadAll();
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Помилка створення: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task SaveRole(UserRowModel user)
+    {
+        message = "";
+        isError = false;
+
+        var role = GetSelectedRole(user);
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            isError = true;
+            message = "Спочатку оберіть нову роль.";
+            return;
+        }
+
+        try
+        {
+            await AttachToken();
+
+            var response = await Http.PostAsJsonAsync($"api/Users/{user.Id}/role", role);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = $"Роль користувача ID {user.Id} змінено на {RoleLabel(role)}.";
+                await LoadAll();
+            }
+            else
+            {
+                isError = true;
+                message = await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Помилка зміни ролі: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteUser(UserRowModel user)
+    {
+        message = "";
+        isError = false;
+
+        try
+        {
+            await AttachToken();
+
+            var response = await Http.DeleteAsync($"api/Users/{user.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = $"Користувача {user.Email} видалено.";
+                await LoadAll();
+            }
+            else
+            {
+                isError = true;
+                message = await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Помилка видалення: {ex.Message}";
+        }
+    }
+
+    private async Task AttachToken()
+    {
+        var token = await JS.InvokeAsync<string?>("localStorage.getItem", "authToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private string GetSelectedRole(UserRowModel user)
+    {
+        return selectedRoles.TryGetValue(user.Id, out var value) ? value : "";
+    }
+
+    private void SetSelectedRole(int userId, string? role)
+    {
+        selectedRoles[userId] = role ?? "";
+    }
+
+    private static string DisplayName(UserRowModel user)
+    {
+        var name = $"{user.FirstName} {user.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(name) ? "—" : name;
+    }
+
+    private static string RoleLabel(string role) => role switch
+    {
+        "Administrator" => "Адміністратор",
+        "Manager" => "Лікар",
+        "RegisteredUser" => "Пацієнт",
+        _ => role
+    };
+
+    private static string GetInitials(DoctorModel doctor)
+    {
+        var first = string.IsNullOrWhiteSpace(doctor.FirstName) ? "" : doctor.FirstName[0].ToString().ToUpperInvariant();
+        var last = string.IsNullOrWhiteSpace(doctor.LastName) ? "" : doctor.LastName[0].ToString().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(first + last) ? "DR" : first + last;
+    }
+
+    private static string GetInitials(PatientModel patient)
+    {
+        var first = string.IsNullOrWhiteSpace(patient.FirstName) ? "" : patient.FirstName[0].ToString().ToUpperInvariant();
+        var last = string.IsNullOrWhiteSpace(patient.LastName) ? "" : patient.LastName[0].ToString().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(first + last) ? "P" : first + last;
+    }
+}

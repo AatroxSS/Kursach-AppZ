@@ -1,0 +1,97 @@
+@page "/login"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<PageTitle>Вхід</PageTitle>
+
+<div class="auth-page">
+    <section class="auth-card">
+        <span class="eyebrow">Авторизація</span>
+        <h1>Вхід у Hospital App</h1>
+        <p>Увійдіть, щоб отримати доступ до кабінету, записів та адмін-панелі.</p>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+        }
+
+        <div class="form-stack">
+            <label>
+                Email
+                <input class="form-control" @bind="model.Email" autocomplete="email" />
+            </label>
+
+            <label>
+                Пароль
+                <input class="form-control" type="password" @bind="model.Password" autocomplete="current-password" />
+            </label>
+
+            <button class="btn btn-primary w-100" @onclick="HandleLogin" disabled="@isBusy">
+                @(isBusy ? "Вхід..." : "Увійти")
+            </button>
+        </div>
+
+        <div class="auth-switch">
+            Ще немає акаунта? <a href="/register">Створити акаунт</a>
+        </div>
+    </section>
+</div>
+
+@code {
+    private LoginRequestModel model = new();
+    private string message = "";
+    private bool isError;
+    private bool isBusy;
+
+    private async Task HandleLogin()
+    {
+        isBusy = true;
+        message = "";
+        isError = false;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Auth/login", model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                isError = true;
+                message = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    message = "Невірний Email або пароль.";
+                }
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<LoginResponseModel>();
+
+            if (result is null || string.IsNullOrWhiteSpace(result.Token))
+            {
+                isError = true;
+                message = "Сервер не повернув JWT-токен.";
+                return;
+            }
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+
+            if (AuthStateProvider is Hospital.UI.Providers.CustomAuthStateProvider provider)
+            {
+                provider.MarkUserAsAuthenticated(result.Token);
+            }
+
+            NavManager.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Помилка з'єднання з API: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

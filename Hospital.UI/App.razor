@@ -1,0 +1,34 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <div class="empty-state">
+                            <div class="empty-icon">🔒</div>
+                            <h1>Потрібна авторизація</h1>
+                            <p>Увійдіть в акаунт, щоб відкрити цю сторінку.</p>
+                            <a class="btn btn-primary" href="/login">Увійти</a>
+                        </div>
+                    </LayoutView>
+                </NotAuthorized>
+                <Authorizing>
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <div class="loading-card">Перевіряємо доступ...</div>
+                    </LayoutView>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="empty-state">
+                    <div class="empty-icon">404</div>
+                    <h1>Сторінку не знайдено</h1>
+                    <p>Такої адреси в Hospital App немає.</p>
+                    <a class="btn btn-primary" href="/">На головну</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

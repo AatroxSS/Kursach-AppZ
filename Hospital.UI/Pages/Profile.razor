@@ -1,0 +1,143 @@
+@page "/profile"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Мій кабінет</PageTitle>
+
+<section class="section-header">
+    <div>
+        <span class="eyebrow">Особистий кабінет</span>
+        <AuthorizeView>
+            <Authorized Context="authContext">
+                <h1>@(authContext.User.Identity?.Name ?? "Користувач")</h1>
+                <p>Роль у системі: <strong>@GetRoleName(authContext.User)</strong></p>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</section>
+
+<div class="dashboard-grid">
+    <section class="stat-card">
+        <span>Записи</span>
+        <strong>@appointments.Count</strong>
+    </section>
+    <section class="stat-card">
+        <span>Активні</span>
+        <strong>@appointments.Count(a => !a.IsCompleted)</strong>
+    </section>
+    <section class="stat-card">
+        <span>Завершені</span>
+        <strong>@appointments.Count(a => a.IsCompleted)</strong>
+    </section>
+</div>
+
+<section class="panel mt-4">
+    <div class="panel-header">
+        <h2>Медичні записи</h2>
+        <button class="btn btn-soft btn-sm" @onclick="LoadAppointments">Оновити</button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-card">Завантаження записів...</div>
+    }
+    else if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+    else if (!appointments.Any())
+    {
+        <div class="empty-state compact">
+            <div class="empty-icon">📄</div>
+            <h3>Записів поки немає</h3>
+            <p>Пацієнт може створити запис на сторінці конкретного лікаря.</p>
+            <a class="btn btn-primary" href="/doctors">Перейти до лікарів</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table clean-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Дата</th>
+                        <th>Лікар</th>
+                        <th>Пацієнт</th>
+                        <th>Статус</th>
+                        <th>Нотатки</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in appointments.OrderByDescending(a => a.AppointmentDate))
+                    {
+                        <tr>
+                            <td>#@item.Id</td>
+                            <td>@item.AppointmentDate.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@(item.DoctorFullName ?? $"ID {item.DoctorId}")</td>
+                            <td>@(item.PatientFullName ?? $"ID {item.PatientId}")</td>
+                            <td>
+                                <span class="status @(item.IsCompleted ? "done" : "active")">
+                                    @(item.IsCompleted ? "Завершено" : "Заплановано")
+                                </span>
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "—" : item.Notes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private List<AppointmentModel> appointments = new();
+    private bool isLoading = true;
+    private string error = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAppointments();
+    }
+
+    private async Task LoadAppointments()
+    {
+        isLoading = true;
+        error = "";
+
+        try
+        {
+            await AttachToken();
+            appointments = await Http.GetFromJsonAsync<List<AppointmentModel>>("api/Appointments") ?? new();
+        }
+        catch (Exception ex)
+        {
+            error = $"Не вдалося завантажити записи: {ex.Message}";
+            appointments = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task AttachToken()
+    {
+        var token = await JS.InvokeAsync<string?>("localStorage.getItem", "authToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private static string GetRoleName(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Administrator")) return "Адміністратор";
+        if (user.IsInRole("Manager")) return "Лікар";
+        if (user.IsInRole("RegisteredUser")) return "Пацієнт";
+        return "Користувач";
+    }
+}

@@ -1,5 +1,7 @@
 <Solution>
+  <Project Path="Hospital.API/Hospital.API.csproj" Id="bc84a8cb-d26e-40a0-81b6-743e3820a84b" />
   <Project Path="Hospital.BLL/Hospital.BLL.csproj" Id="9fd6a785-fcd3-4a7c-9886-dce10026788c" />
   <Project Path="Hospital.DAL/Hospital.DAL.csproj" Id="e1cea754-28c6-431a-87eb-890eaabfcd0c" />
   <Project Path="Hospital.Tests/Hospital.Tests.csproj" Id="d18d8406-0877-4c8c-ad9f-cfe959c833c1" />
+  <Project Path="Hospital.UI/Hospital.UI.csproj" Id="c72e9288-8a79-4e11-838d-0ff746060632" />
 </Solution>

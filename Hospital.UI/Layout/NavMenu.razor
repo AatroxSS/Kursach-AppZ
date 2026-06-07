@@ -1,0 +1,85 @@
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<aside class="sidebar">
+    <a class="brand" href="/">
+        <span class="brand-icon">🏥</span>
+        <span>
+            <strong>Hospital App</strong>
+            <small>Clinic manager</small>
+        </span>
+    </a>
+
+    <nav class="nav-list">
+        <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
+            <span>🏠</span> Головна
+        </NavLink>
+
+        <NavLink class="nav-item" href="/doctors">
+            <span>👨‍⚕️</span> Лікарі
+        </NavLink>
+
+        <AuthorizeView>
+            <Authorized>
+                <NavLink class="nav-item" href="/profile">
+                    <span>👤</span> Мій кабінет
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Administrator">
+            <Authorized>
+                <NavLink class="nav-item admin-link" href="/admin">
+                    <span>🛠️</span> Адмін-панель
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+
+    <div class="sidebar-footer">
+        <AuthorizeView>
+            <Authorized Context="authContext">
+                <div class="user-chip">
+                    <span class="avatar">@GetInitial(authContext.User.Identity?.Name)</span>
+                    <span>
+                        <strong>@(authContext.User.Identity?.Name ?? "Користувач")</strong>
+                        <small>@GetRoleName(authContext.User)</small>
+                    </span>
+                </div>
+                <button class="btn btn-outline-light w-100" @onclick="Logout">Вийти з акаунта</button>
+            </Authorized>
+            <NotAuthorized>
+                <a class="btn btn-light w-100 mb-2" href="/login">Увійти</a>
+                <a class="btn btn-outline-light w-100" href="/register">Реєстрація</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</aside>
+
+@code {
+    private static string GetInitial(string? name)
+    {
+        return string.IsNullOrWhiteSpace(name) ? "U" : name.Trim()[0].ToString().ToUpperInvariant();
+    }
+
+    private static string GetRoleName(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Administrator")) return "Адміністратор";
+        if (user.IsInRole("Manager")) return "Лікар";
+        if (user.IsInRole("RegisteredUser")) return "Пацієнт";
+        return "Користувач";
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+
+        if (AuthStateProvider is Hospital.UI.Providers.CustomAuthStateProvider customProvider)
+        {
+            customProvider.MarkUserAsLoggedOut();
+        }
+
+        NavManager.NavigateTo("/", forceLoad: true);
+    }
+}

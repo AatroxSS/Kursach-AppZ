@@ -1,0 +1,229 @@
+@page "/doctor/{Id:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Профіль лікаря</PageTitle>
+
+<a class="link-action" href="/doctors">← Назад до лікарів</a>
+
+@if (doctor is null)
+{
+    <div class="loading-card mt-3">Завантаження профілю лікаря...</div>
+}
+else
+{
+    <section class="profile-hero">
+        <div class="doctor-avatar large">@GetInitials(doctor)</div>
+        <div>
+            <span class="eyebrow">Лікар ID @doctor.Id</span>
+            <h1>@doctor.FullName</h1>
+            <p>@doctor.Specialization</p>
+            <div class="meta-row">
+                <span>@doctor.ExperienceYears років досвіду</span>
+                <span>@appointments.Count записів у розкладі</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="content-grid">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Розклад прийомів</h2>
+                <span class="badge-soft">@appointments.Count</span>
+            </div>
+
+            @if (!appointments.Any())
+            {
+                <div class="empty-state compact">
+                    <div class="empty-icon">📅</div>
+                    <h3>Графік порожній</h3>
+                    <p>Поки немає активних записів до цього лікаря.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="table clean-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Пацієнт</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in appointments.OrderBy(a => a.AppointmentDate))
+                            {
+                                <tr>
+                                    <td>@item.AppointmentDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td>@(item.PatientFullName ?? $"ID {item.PatientId}")</td>
+                                    <td>
+                                        <span class="status @(item.IsCompleted ? "done" : "active")">
+                                            @(item.IsCompleted ? "Завершено" : "Заплановано")
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <AuthorizeView Roles="RegisteredUser">
+            <Authorized>
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Записатися на прийом</h2>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(message))
+                    {
+                        <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+                    }
+
+                    <div class="form-stack">
+                        <label>
+                            Дата і час
+                            <input class="form-control"
+                                   type="datetime-local"
+                                   value="@appointmentDateValue"
+                                   @onchange="OnAppointmentDateChanged" />
+                        </label>
+
+                        <label>
+                            Нотатка
+                            <textarea class="form-control" rows="3" @bind="notes" placeholder="Наприклад: первинна консультація"></textarea>
+                        </label>
+
+                        <button class="btn btn-primary" @onclick="BookAppointment" disabled="@isBusy">
+                            @(isBusy ? "Створення..." : "Створити запис")
+                        </button>
+                    </div>
+                </section>
+            </Authorized>
+            <NotAuthorized>
+                <section class="panel">
+                    <h2>Запис на прийом</h2>
+                    <p>Записатися можуть тільки пацієнти після входу в акаунт.</p>
+                    <a class="btn btn-primary" href="/login">Увійти</a>
+                </section>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private DoctorModel? doctor;
+    private List<AppointmentModel> appointments = new();
+    private string appointmentDateValue = DateTime.Now.AddDays(1).Date.AddHours(9).ToString("yyyy-MM-ddTHH:mm");
+    private string notes = "";
+    private string message = "";
+    private bool isError;
+    private bool isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPage();
+    }
+
+    private async Task LoadPage()
+    {
+        try
+        {
+            doctor = await Http.GetFromJsonAsync<DoctorModel>($"api/Doctors/{Id}");
+        }
+        catch
+        {
+            doctor = null;
+        }
+
+        try
+        {
+            appointments = await Http.GetFromJsonAsync<List<AppointmentModel>>($"api/Appointments/doctor/{Id}") ?? new();
+        }
+        catch
+        {
+            appointments = new();
+        }
+    }
+
+    private void OnAppointmentDateChanged(ChangeEventArgs e)
+    {
+        appointmentDateValue = e.Value?.ToString() ?? "";
+    }
+
+    private async Task BookAppointment()
+    {
+        isBusy = true;
+        message = "";
+        isError = false;
+
+        try
+        {
+            await AttachToken();
+
+            if (!DateTime.TryParse(appointmentDateValue, out var date))
+            {
+                isError = true;
+                message = "Невірний формат дати.";
+                return;
+            }
+
+            var payload = new AppointmentCreateModel
+            {
+                DoctorId = Id,
+                AppointmentDate = date,
+                Notes = notes
+            };
+
+            var response = await Http.PostAsJsonAsync("api/Appointments/my", payload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Запис успішно створено.";
+                notes = "";
+                appointmentDateValue = DateTime.Now.AddDays(1).Date.AddHours(9).ToString("yyyy-MM-ddTHH:mm");
+                await LoadPage();
+            }
+            else
+            {
+                isError = true;
+                message = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    message = "Не вдалося створити запис.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Помилка з'єднання з API: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task AttachToken()
+    {
+        var token = await JS.InvokeAsync<string?>("localStorage.getItem", "authToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private static string GetInitials(DoctorModel doctor)
+    {
+        var first = string.IsNullOrWhiteSpace(doctor.FirstName) ? "" : doctor.FirstName[0].ToString().ToUpperInvariant();
+        var last = string.IsNullOrWhiteSpace(doctor.LastName) ? "" : doctor.LastName[0].ToString().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(first + last) ? "DR" : first + last;
+    }
+}

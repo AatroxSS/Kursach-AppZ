@@ -1,0 +1,79 @@
+@page "/doctors"
+@inject HttpClient Http
+
+<PageTitle>Лікарі</PageTitle>
+
+<section class="section-header">
+    <div>
+        <span class="eyebrow">Каталог спеціалістів</span>
+        <h1>Лікарі клініки</h1>
+        <p>Оберіть лікаря, перегляньте розклад і створіть запис на прийом.</p>
+    </div>
+</section>
+
+<div class="toolbar">
+    <input class="form-control" placeholder="Пошук за іменем або спеціалізацією..." @bind="search" @bind:event="oninput" />
+</div>
+
+@if (doctors is null)
+{
+    <div class="loading-card">Завантаження лікарів...</div>
+}
+else if (!FilteredDoctors.Any())
+{
+    <div class="empty-state compact">
+        <div class="empty-icon">🔎</div>
+        <h3>Нічого не знайдено</h3>
+        <p>Спробуйте інший запит або створіть лікарів через адмін-панель.</p>
+    </div>
+}
+else
+{
+    <div class="card-grid">
+        @foreach (var doctor in FilteredDoctors)
+        {
+            <article class="doctor-card">
+                <div class="doctor-avatar">@GetInitials(doctor)</div>
+                <div class="doctor-info">
+                    <h3>@doctor.FullName</h3>
+                    <p>@doctor.Specialization</p>
+                    <div class="meta-row">
+                        <span>ID: @doctor.Id</span>
+                        <span>@doctor.ExperienceYears років досвіду</span>
+                    </div>
+                    <a href="/doctor/@doctor.Id" class="btn btn-primary btn-sm">Відкрити профіль</a>
+                </div>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private List<DoctorModel>? doctors;
+    private string search = "";
+
+    private IEnumerable<DoctorModel> FilteredDoctors =>
+        (doctors ?? new()).Where(d =>
+            string.IsNullOrWhiteSpace(search)
+            || d.FullName.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || d.Specialization.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            doctors = await Http.GetFromJsonAsync<List<DoctorModel>>("api/Doctors") ?? new();
+        }
+        catch
+        {
+            doctors = new();
+        }
+    }
+
+    private static string GetInitials(DoctorModel doctor)
+    {
+        var first = string.IsNullOrWhiteSpace(doctor.FirstName) ? "" : doctor.FirstName[0].ToString().ToUpperInvariant();
+        var last = string.IsNullOrWhiteSpace(doctor.LastName) ? "" : doctor.LastName[0].ToString().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(first + last) ? "DR" : first + last;
+    }
+}

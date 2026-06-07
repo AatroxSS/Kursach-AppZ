@@ -1,0 +1,104 @@
+@page "/"
+@inject HttpClient Http
+
+<PageTitle>Hospital App</PageTitle>
+
+<section class="hero-card">
+    <div class="hero-copy">
+        <span class="eyebrow">Центральна клінічна лікарня</span>
+        <h1>Єдина система для пацієнтів, лікарів та адміністратора</h1>
+        <p>
+            Переглядайте лікарів, створюйте записи, керуйте ролями користувачів
+            і працюйте з розкладом без розкиданих сторінок та різних стилів.
+        </p>
+
+        <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="/doctors">Переглянути лікарів</a>
+            <AuthorizeView>
+                <Authorized>
+                    <a class="btn btn-outline-primary btn-lg" href="/profile">Мій кабінет</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="btn btn-outline-primary btn-lg" href="/login">Увійти</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+
+    <div class="hero-stats">
+        <div>
+            <strong>@doctorCount</strong>
+            <span>лікарів</span>
+        </div>
+        <div>
+            <strong>24/7</strong>
+            <span>доступ до системи</span>
+        </div>
+        <div>
+            <strong>JWT</strong>
+            <span>рольовий доступ</span>
+        </div>
+    </div>
+</section>
+
+<section class="section-header">
+    <div>
+        <span class="eyebrow">Швидкий огляд</span>
+        <h2>Лікарі клініки</h2>
+    </div>
+    <a href="/doctors" class="link-action">Відкрити всі →</a>
+</section>
+
+@if (doctors is null)
+{
+    <div class="loading-card">Завантаження лікарів...</div>
+}
+else if (!doctors.Any())
+{
+    <div class="empty-state compact">
+        <div class="empty-icon">👨‍⚕️</div>
+        <h3>Лікарів поки немає</h3>
+        <p>Адміністратор може створити лікаря в адмін-панелі або змінити роль користувача на Manager.</p>
+    </div>
+}
+else
+{
+    <div class="card-grid">
+        @foreach (var doctor in doctors.Take(6))
+        {
+            <article class="doctor-card">
+                <div class="doctor-avatar">@GetInitials(doctor)</div>
+                <div>
+                    <h3>@doctor.FullName</h3>
+                    <p>@doctor.Specialization</p>
+                    <a href="/doctor/@doctor.Id" class="btn btn-soft btn-sm">Профіль і розклад</a>
+                </div>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private List<DoctorModel>? doctors;
+    private int doctorCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            doctors = await Http.GetFromJsonAsync<List<DoctorModel>>("api/Doctors") ?? new();
+            doctorCount = doctors.Count;
+        }
+        catch
+        {
+            doctors = new();
+        }
+    }
+
+    private static string GetInitials(DoctorModel doctor)
+    {
+        var first = string.IsNullOrWhiteSpace(doctor.FirstName) ? "" : doctor.FirstName[0].ToString().ToUpperInvariant();
+        var last = string.IsNullOrWhiteSpace(doctor.LastName) ? "" : doctor.LastName[0].ToString().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(first + last) ? "DR" : first + last;
+    }
+}

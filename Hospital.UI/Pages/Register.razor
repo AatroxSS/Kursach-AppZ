@@ -1,0 +1,92 @@
+@page "/register"
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<PageTitle>Реєстрація</PageTitle>
+
+<div class="auth-page">
+    <section class="auth-card">
+        <span class="eyebrow">Новий акаунт</span>
+        <h1>Реєстрація пацієнта</h1>
+        <p>Після створення акаунта ви зможете увійти та записатися до лікаря.</p>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+        }
+
+        <div class="form-grid two">
+            <label>
+                Ім'я
+                <input class="form-control" @bind="model.FirstName" />
+            </label>
+
+            <label>
+                Прізвище
+                <input class="form-control" @bind="model.LastName" />
+            </label>
+
+            <label>
+                Email
+                <input class="form-control" @bind="model.Email" autocomplete="email" />
+            </label>
+
+            <label>
+                Пароль
+                <input class="form-control" type="password" @bind="model.Password" autocomplete="new-password" />
+            </label>
+        </div>
+
+        <button class="btn btn-primary w-100 mt-3" @onclick="HandleRegister" disabled="@isBusy">
+            @(isBusy ? "Створення..." : "Створити акаунт")
+        </button>
+
+        <div class="auth-switch">
+            Уже є акаунт? <a href="/login">Увійти</a>
+        </div>
+    </section>
+</div>
+
+@code {
+    private RegisterUserModel model = new();
+    private string message = "";
+    private bool isError;
+    private bool isBusy;
+
+    private async Task HandleRegister()
+    {
+        isBusy = true;
+        message = "";
+        isError = false;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Auth/register", model);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Акаунт створено. Зараз відкриється сторінка входу...";
+                await Task.Delay(500);
+                NavManager.NavigateTo("/login");
+            }
+            else
+            {
+                isError = true;
+                message = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    message = "Помилка реєстрації.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            message = $"Помилка з'єднання з API: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

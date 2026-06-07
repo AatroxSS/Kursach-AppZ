@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hospital App</title>
+    <base href="/" />
+
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="Hospital.UI.styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot-loader">
+            <div class="boot-logo">🏥</div>
+            <div>
+                <strong>Hospital App</strong>
+                <span>Завантаження інтерфейсу...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Виникла помилка в інтерфейсі.
+        <a href="." class="reload">Перезавантажити</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script>
+        const hospitalAppBootVersion = Date.now().toString();
+
+        Blazor.start({
+            loadBootResource: function (type, name, defaultUri, integrity) {
+                const separator = defaultUri.includes("?") ? "&" : "?";
+                const cacheBustedUri = `${defaultUri}${separator}v=${hospitalAppBootVersion}`;
+
+                // Important for .NET 10:
+                // dotnetjs / js-module-* resources must be returned as a URI string or null.
+                // Returning fetch(...) for these JS runtime resources causes:
+                // "For a dotnetjs resource, custom loaders must supply a URI string."
+                if (
+                    type === "dotnetjs" ||
+                    type === "js-module-dotnet" ||
+                    type === "js-module-runtime" ||
+                    type === "js-module-native" ||
+                    type === "js-module-threads" ||
+                    type === "js-module-library-initializer"
+                ) {
+                    return cacheBustedUri;
+                }
+
+                // For assemblies/wasm/pdb/json/data resources, fetch manually without SRI
+                // so stale integrity hashes from old blazor.boot.json don't block localhost dev.
+                return fetch(cacheBustedUri, {
+                    cache: "no-store"
+                });
+            }
+        });
+    </script>
+</body>
+</html>

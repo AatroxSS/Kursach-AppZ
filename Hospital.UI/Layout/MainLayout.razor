@@ -1,0 +1,25 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <NavMenu />
+
+    <main class="app-main">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">Hospital App</span>
+                <strong>Система керування клінікою</strong>
+            </div>
+            <a class="topbar-link" href="/">Головна</a>
+        </header>
+
+        <section class="page-container">
+            @Body
+        </section>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    Виникла помилка в інтерфейсі.
+    <a href="." class="reload">Перезавантажити</a>
+    <span class="dismiss">🗙</span>
+</div>
