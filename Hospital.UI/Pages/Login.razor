@@ -55,33 +55,35 @@
         errorMessage = "";
         try
         {
-            var response = await Http.PostAsJsonAsync("https://localhost:7012/api/Auth/login", loginModel);
+            // Знову відносний шлях
+            var response = await Http.PostAsJsonAsync("api/Auth/login", loginModel);
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
-
                 if (result != null && !string.IsNullOrEmpty(result.Token))
                 {
-                    // ТИМЧАСОВО ЗАКОМЕНТУЙ ЦЕЙ РЯДОК:
-                    // ((Hospital.UI.Providers.CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(token);
-
-                    // ЗАМІНИ НА ПРОСТЕ ЗБЕРЕЖЕННЯ:
+                    // 1. Зберігаємо токен
                     await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
-                    
-                    errorMessage = "Успіх! Токен отримано (тестуємо без провайдера)";
-                    // NavManager.NavigateTo("/"); // Поки не перенаправляй, щоб побачити успіх
+
+                    // 2. КАЖЕМО BLAZOR, ЩО МИ АВТОРИЗОВАНІ! (ЦЕЙ РЯДОК БУВ ЗАКОМЕНТОВАНИЙ)
+                    ((Hospital.UI.Providers.CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(result.Token);
+
+                    // 3. Переходимо на головну сторінку
+                    NavManager.NavigateTo("/");
                 }
             }
             else
             {
-                errorMessage = "Невірний Email або пароль.";
+                // Якщо помилка (наприклад, 401 Unauthorized), читаємо повідомлення від сервера
+                var errorResult = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Помилка: {errorResult}";
             }
         }
         catch (Exception ex)
         {
-            // Цей вивід покаже нам, чи помилка прийшла з провайдера чи звідкись ще
-            errorMessage = $"ПОМИЛКА: {ex.GetType().Name} - {ex.Message}";
+            errorMessage = $"ПОМИЛКА З'ЄДНАННЯ: {ex.Message}";
         }
+    }
     }
 }

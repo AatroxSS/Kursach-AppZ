@@ -1,0 +1,214 @@
+﻿@page "/admin"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http.Json
+@using Hospital.BLL.DTOs
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<AuthorizeView Roles="Administrator">
+    <NotAuthorized>
+        <div class="container mt-5"><div class="alert alert-danger">Доступ заборонено! Потрібні права Адміністратора.</div></div>
+    </NotAuthorized>
+    <Authorized>
+        <div class="container mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="text-danger fw-bold">🛠️ Панель Адміністратора</h1>
+                <a href="/" class="btn btn-outline-secondary">На головну</a>
+            </div>
+
+            @if (!string.IsNullOrEmpty(infoMessage))
+            {
+                <div class="alert alert-success">@infoMessage</div>
+            }
+
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-dark text-white fw-bold">➕ Створити користувача</div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label">Email:</label>
+                                <input type="email" class="form-control form-control-sm" @bind="newModel.Email" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Пароль:</label>
+                                <input type="password" class="form-control form-control-sm" @bind="newModel.Password" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Ім'я:</label>
+                                <input type="text" class="form-control form-control-sm" @bind="newModel.FirstName" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Прізвище:</label>
+                                <input type="text" class="form-control form-control-sm" @bind="newModel.LastName" />
+                            </div>
+                            <button class="btn btn-danger w-100 btn-sm" @onclick="CreateAccount">Створити</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-8 mb-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-secondary text-white fw-bold">👥 Керування користувачіми системи</div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover table-striped mb-0 align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Email</th>
+                                        <th>Поточна Роль</th>
+                                        <th>Дії</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (users == null)
+                                    {
+                                        <tr><td colspan="4" class="text-center"><div class="spinner-border spinner-border-sm text-primary"></div></td></tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var u in users)
+                                        {
+                                            <tr>
+                                                <td>@u.Id</td>
+                                                <td class="fw-bold">@u.Email</td>
+                                                <td><span class="badge bg-info text-dark">@u.Role</span></td>
+                                                <td>
+                                                    <select class="form-select form-select-sm d-inline-block w-auto me-2" @onchange="(e) => ChangeRole(u.Id, e.Value.ToString())">
+                                                        <option value="">Змінити роль...</option>
+                                                        <option value="Administrator">Administrator</option>
+                                                        <option value="Manager">Manager (Лікар)</option>
+                                                        <option value="RegisteredUser">RegisteredUser</option>
+                                                    </select>
+                                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteAccount(u.Id)">🗑️ Видалити</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-2">
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-primary text-white fw-bold">👨‍⚕️ Зареєстровані Лікарі</div>
+                        <ul class="list-group list-group-flush">
+                            @if (doctors == null)
+                            {
+                                <li class="list-group-item text-center">Завантаження...</li>
+                            }
+                            else if (!doctors.Any())
+                            {
+                                <li class="list-group-item text-muted">Лікарів немає</li>
+                            }
+                            else
+                            {
+                                foreach (var d in doctors)
+                                {
+                                    <li class="list-group-item">🔹 Д-р. @d.FirstName @d.LastName (ID: @d.Id)</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-success text-white fw-bold">👤 Зареєстровані Пацієнти</div>
+                        <ul class="list-group list-group-flush">
+                            @if (patients == null)
+                            {
+                                <li class="list-group-item text-center">Завантаження...</li>
+                            }
+                            else if (!patients.Any())
+                            {
+                                <li class="list-group-item text-muted">Пацієнтів немає</li>
+                            }
+                            else
+                            {
+                                foreach (var p in patients)
+                                {
+                                    <li class="list-group-item">🔸 @p.FirstName @p.LastName (ID: @p.Id)</li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<UserDTO> users;
+    private List<DoctorDTO> doctors;
+    private List<PatientDTO> patients;
+    private string infoMessage = "";
+
+    // ВИПРАВЛЕННЯ: Тепер тут використовується власна модель, а не Index.RegisterModel
+    private AdminRegisterModel newModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            users = await Http.GetFromJsonAsync<List<UserDTO>>("api/Users");
+            doctors = await Http.GetFromJsonAsync<List<DoctorDTO>>("api/Doctors");
+            patients = await Http.GetFromJsonAsync<List<PatientDTO>>("api/Patients");
+        }
+        catch { }
+    }
+
+    private async Task CreateAccount()
+    {
+        if (string.IsNullOrEmpty(newModel.Email) || string.IsNullOrEmpty(newModel.Password)) return;
+        var response = await Http.PostAsJsonAsync("api/Auth/register", newModel);
+        if (response.IsSuccessStatusCode)
+        {
+            infoMessage = $"Користувача {newModel.Email} успішно створено!";
+            newModel = new(); // Очищуємо форму
+            await LoadData();
+        }
+    }
+
+    private async Task ChangeRole(int id, string role)
+    {
+        if (string.IsNullOrEmpty(role)) return;
+        var response = await Http.PostAsJsonAsync($"api/Users/{id}/role", role);
+        if (response.IsSuccessStatusCode)
+        {
+            infoMessage = $"Роль користувача ID {id} змінено на {role}!";
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteAccount(int id)
+    {
+        var response = await Http.DeleteAsync($"api/Users/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            infoMessage = $"Користувача з ID {id} успішно видалено з бази.";
+            await LoadData();
+        }
+    }
+
+    // Незалежний клас моделі спеціально для цієї сторінки
+    public class AdminRegisterModel
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+
+    public class DoctorDTO { public int Id { get; set; } public string FirstName { get; set; } public string LastName { get; set; } }
+    public class PatientDTO { public int Id { get; set; } public string FirstName { get; set; } public string LastName { get; set; } }
+}

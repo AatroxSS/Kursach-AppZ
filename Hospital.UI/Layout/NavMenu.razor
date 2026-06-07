@@ -1,88 +1,57 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Hospital App</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <a class="navbar-brand text-wrap fw-bold" href="">🏥 Hospital App</a>
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').checked = false">
     <nav class="flex-column">
-        
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Головна
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> 🏠 Головна
             </NavLink>
         </div>
 
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="doctors">
-                        <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Лікарі
-                    </NavLink>
-                </div>
-                
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="patients">
-                        <span class="bi bi-person-lines-fill-nav-menu" aria-hidden="true"></span> Пацієнти
+                    <NavLink class="nav-link" href="profile">
+                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> 👤 Мій Кабінет
                     </NavLink>
                 </div>
 
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="appointments">
-                        <span class="bi bi-calendar-check-fill-nav-menu" aria-hidden="true"></span> Прийоми
-                    </NavLink>
-                </div>
+                <AuthorizeView Roles="Administrator" Context="adminContext">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link text-warning" href="admin">
+                                <span class="bi bi-gear-fill-nav-menu" aria-hidden="true"></span> 🛠️ Адмін-Панель
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
 
                 <div class="nav-item px-3 mt-4">
-                    <button class="nav-link btn btn-link" style="color: #ff7675; cursor: pointer; text-align: left; width: 100%; border: none; background: none;" @onclick="Logout">
-                        <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Вийти
+                    <button class="nav-link btn btn-link text-start text-danger w-100" @onclick="Logout">
+                        <span class="bi bi-box-arrow-left-nav-menu" aria-hidden="true"></span> 🚪 Вийти з акаунта
                     </button>
                 </div>
             </Authorized>
-              <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Увійти
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="register">
-                        <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> Реєстрація
-                    </NavLink>
-                </div>
-            </NotAuthorized>
         </AuthorizeView>
-
     </nav>
 </div>
 
 @code {
-@using Microsoft.AspNetCore.Components.Authorization
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
-
-    [Inject] public IJSRuntime JS { get; set; }
-    [Inject] public AuthenticationStateProvider AuthStateProvider { get; set; }
-    [Inject] public NavigationManager NavManager { get; set; }
-
     private async Task Logout()
     {
-        // Видаляємо токен з пам'яті браузера
         await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
-        
-        // Повідомляємо додаток, що користувач вийшов
         ((Hospital.UI.Providers.CustomAuthStateProvider)AuthStateProvider).MarkUserAsLoggedOut();
-        
-        // Перенаправляємо на сторінку входу
-        NavManager.NavigateTo("/login");
+        NavManager.NavigateTo("/", forceLoad: true);
     }
 }

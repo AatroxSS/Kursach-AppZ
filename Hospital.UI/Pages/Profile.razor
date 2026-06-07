@@ -1,0 +1,99 @@
+﻿@page "/profile"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<AuthorizeView>
+    <NotAuthorized>
+        <div class="container mt-5"><div class="alert alert-warning">Будь ласка, авторизуйтесь для перегляду профілю.</div></div>
+    </NotAuthorized>
+    <Authorized>
+        <div class="container mt-4">
+            <h1 class="mb-3">👤 Ваш особистий кабінет</h1>
+            <h4 class="text-secondary mb-4">Користувач: @context.User.Identity?.Name</h4>
+
+            @if (appointments == null)
+            {
+                <div class="spinner-border text-primary" role="status"></div>
+            }
+            else
+            {
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white fw-bold">
+                        📅 Список ваших медичних записів (Сесії)
+                    </div>
+                    <div class="card-body p-0">
+                        @if (!appointments.Any())
+                        {
+                            <div class="p-4 text-center text-muted">У вас немає активних чи минулих записів.</div>
+                        }
+                        else
+                        {
+                            <table class="table table-striped mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID Запису</th>
+                                        <th>Дата та Час</th>
+                                        @if (context.User.IsInRole("RegisteredUser"))
+                                        {
+                                            <th>Лікар</th>
+                                        }
+                                        @if (context.User.IsInRole("Manager"))
+                                        {
+                                            <th>Пацієнт</th>
+                                        }
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var app in appointments)
+                                    {
+                                        <tr>
+                                            <td>#@app.Id</td>
+                                            <td class="fw-bold">@app.AppointmentDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                            @if (context.User.IsInRole("RegisteredUser"))
+                                            {
+                                                <td>👨‍⚕️ Лікар (ID: @app.DoctorId)</td>
+                                            }
+                                            @if (context.User.IsInRole("Manager"))
+                                            {
+                                                <td>👤 Пацієнт (ID: @app.PatientId)</td>
+                                            }
+                                            <td><span class="badge bg-success">Підтверджено</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<AppointmentDTO> appointments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Отримуємо записи з загального ендпоінту
+            appointments = await Http.GetFromJsonAsync<List<AppointmentDTO>>("api/Appointments");
+            // У реальному додатку тут зазвичай роблять фільтрацію на сервері: api/Appointments/my
+        }
+        catch
+        {
+            appointments = new();
+        }
+    }
+
+    public class AppointmentDTO
+    {
+        public int Id { get; set; }
+        public int PatientId { get; set; }
+        public int DoctorId { get; set; }
+        public DateTime AppointmentDate { get; set; }
+    }
+}

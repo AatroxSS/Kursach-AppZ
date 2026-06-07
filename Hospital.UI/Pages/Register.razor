@@ -57,11 +57,12 @@
         errorMessage = "";
         try
         {
-            var response = await Http.PostAsJsonAsync("https://localhost:7012/api/Auth/register", registerModel);
+            // Використовуємо відносний шлях, бо базовий ми вже вказали в Program.cs
+            var response = await Http.PostAsJsonAsync("api/Auth/register", registerModel);
 
             if (response.IsSuccessStatusCode)
             {
-                // Якщо успішно - кидаємо на сторінку логіну
+                // Все пройшло ідеально, кидаємо на вхід
                 NavManager.NavigateTo("/login");
             }
             else
@@ -72,8 +73,9 @@
         }
         catch (Exception ex)
         {
-            errorMessage = "Помилка з'єднання з сервером.";
+            errorMessage = $"Помилка з'єднання: {ex.Message}";
         }
+    
     }
 
     public class RegisterModel
