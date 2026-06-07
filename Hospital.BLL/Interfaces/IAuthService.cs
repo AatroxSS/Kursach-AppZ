@@ -1,5 +1,6 @@
 ﻿using Hospital.BLL.DTO;
-using Hospital.BLL.DTOs;
+using System.Collections.Generic;
+
 
 namespace Hospital.BLL.Interfaces
 {
