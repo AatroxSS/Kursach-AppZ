@@ -27,7 +27,7 @@ namespace Hospital.API.Controllers
                 _authService.RegisterUser(dto);
                 return Ok("Реєстрація успішна");
             }
-            catch (Exception ex) // Змінено на загальний Exception, щоб ловити помилки бази
+            catch (Exception ex) 
             {
                 return BadRequest(ex.Message);
             }

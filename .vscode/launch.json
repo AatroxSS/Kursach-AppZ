@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach Blazor UI (Edge, after dotnet run)",
+      "type": "blazorwasm",
+      "request": "attach",
+      "url": "http://localhost:5174",
+      "browser": "edge",
+      "timeout": 60000
+    },
+    {
+      "name": "Attach Blazor UI (Chrome, after dotnet run)",
+      "type": "blazorwasm",
+      "request": "attach",
+      "url": "http://localhost:5174",
+      "browser": "chrome",
+      "timeout": 60000
+    }
+  ]
+}

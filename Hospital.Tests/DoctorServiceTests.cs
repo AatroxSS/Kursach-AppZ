@@ -4,61 +4,123 @@ using Hospital.BLL.Infrastructure;
 using Hospital.BLL.Services;
 using Hospital.DAL.Entities;
 using Hospital.DAL.Interfaces;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using System.Numerics;
-using System.Timers;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using Xunit;
 
 namespace Hospital.Tests
 {
     public class DoctorServiceTests
     {
-        private readonly Mock<IUnitOfWork> _mockUoW;
-        private readonly Mock<IMapper> _mockMapper;
-        private readonly DoctorService _service;
+        private readonly IMapper _mapper;
+        private readonly Mock<IUnitOfWork> _mockUow;
+        private readonly Mock<IRepository<Doctor>> _mockDoctorRepo;
+        private readonly DoctorService _doctorService;
 
         public DoctorServiceTests()
         {
-            _mockUoW = new Mock<IUnitOfWork>();
-            _mockMapper = new Mock<IMapper>();
-            _service = new DoctorService(_mockUoW.Object, _mockMapper.Object);
-        }
+            var mapperConfig = new MapperConfiguration(
+                cfg => cfg.AddProfile(new HospitalMapperProfile()),
+                NullLoggerFactory.Instance);
+            _mapper = mapperConfig.CreateMapper();
 
-        [Theory]
-        [InlineData("", "Петренко")]
-        [InlineData("Олександр", "")]
-        [InlineData(null, null)]
-        public void AddDoctor_EmptyNameOrSurname_ThrowsValidationException(string firstName, string lastName)
-        {
-            var doctorDto = new DoctorDTO
-            {
-                FirstName = firstName,
-                LastName = lastName,
-                Specialization = "Хірург"
-            };
+            _mockUow = new Mock<IUnitOfWork>();
+            _mockDoctorRepo = new Mock<IRepository<Doctor>>();
 
-            var exception = Assert.Throws<ValidationException>(() => _service.AddDoctor(doctorDto));
-            Assert.Equal("Ім'я та прізвище лікаря є обов'язковими", exception.Message);
+            _mockUow.Setup(u => u.Doctors).Returns(_mockDoctorRepo.Object);
+
+            _doctorService = new DoctorService(_mockUow.Object, _mapper);
         }
 
         [Fact]
-        public void AddDoctor_ValidData_CallsCreateAndSave()
+        public void GetAllDoctors_ReturnsMappedDoctors()
         {
-            var doctorDto = new DoctorDTO
+            // Arrange
+            var doctors = new List<Doctor> { new Doctor { Id = 1, Specialization = "Хірург" } };
+            _mockDoctorRepo.Setup(r => r.GetAll()).Returns(doctors);
+
+            // Act
+            var result = _doctorService.GetAllDoctors().ToList();
+
+            // Assert
+            Assert.Single(result);
+        }
+
+        [Fact]
+        public void FindDoctorsBySpecialization_ReturnsFilteredDoctors()
+        {
+            // Arrange
+            var doctors = new List<Doctor>
             {
-                FirstName = "Олександр",
-                LastName = "Петренко",
-                Specialization = "Терапевт"
+                new Doctor { Id = 1, Specialization = "Хірург" },
+                new Doctor { Id = 2, Specialization = "Терапевт" }
             };
 
-            var doctorEntity = new Doctor { FirstName = "Олександр", LastName = "Петренко" };
+            _mockDoctorRepo.Setup(r => r.Find(It.IsAny<Expression<Func<Doctor, bool>>>(), It.IsAny<Expression<Func<Doctor, object>>[]>()))
+                .Returns((Expression<Func<Doctor, bool>> predicate, Expression<Func<Doctor, object>>[] includes) =>
+                    doctors.Where(predicate.Compile()).ToList());
 
-            _mockMapper.Setup(m => m.Map<DoctorDTO, Doctor>(doctorDto)).Returns(doctorEntity);
+            // Act
+            var result = _doctorService.FindDoctorsBySpecialization("Хірург").ToList();
 
-            _service.AddDoctor(doctorDto);
+            // Assert
+            Assert.Single(result);
+            Assert.Equal("Хірург", result.First().Specialization);
+        }
 
-            _mockUoW.Verify(u => u.Doctors.Create(doctorEntity), Times.Once);
-            _mockUoW.Verify(u => u.Save(), Times.Once);
+        [Fact]
+        public void GetDoctor_ValidId_ReturnsDoctor()
+        {
+            // Arrange
+            _mockDoctorRepo.Setup(r => r.GetById(1)).Returns(new Doctor { Id = 1 });
+
+            // Act
+            var result = _doctorService.GetDoctor(1);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(1, result.Id);
+        }
+
+        [Fact]
+        public void GetDoctor_InvalidId_ThrowsValidationException()
+        {
+            // Arrange
+            _mockDoctorRepo.Setup(r => r.GetById(99)).Returns((Doctor)null);
+
+            // Act & Assert
+            Assert.Throws<ValidationException>(() => _doctorService.GetDoctor(99));
+        }
+
+        [Theory]
+        [InlineData("", "Іванов")]
+        [InlineData("Іван", "")]
+        [InlineData(" ", "   ")]
+        public void AddDoctor_InvalidName_ThrowsValidationException(string firstName, string lastName)
+        {
+            // Arrange
+            var dto = new DoctorDTO { FirstName = firstName, LastName = lastName };
+
+            // Act & Assert
+            var ex = Assert.Throws<ValidationException>(() => _doctorService.AddDoctor(dto));
+            Assert.Equal("Ім'я та прізвище лікаря є обов'язковими", ex.Message);
+        }
+
+        [Fact]
+        public void AddDoctor_ValidData_CreatesAndSaves()
+        {
+            // Arrange
+            var dto = new DoctorDTO { FirstName = "Іван", LastName = "Іванов", Specialization = "ЛОР" };
+
+            // Act
+            _doctorService.AddDoctor(dto);
+            // Assert
+            _mockDoctorRepo.Verify(r => r.Create(It.IsAny<Doctor>()), Times.Once);
+            _mockUow.Verify(u => u.Save(), Times.Once);
         }
     }
 }

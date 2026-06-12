@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "run-api",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/Hospital.API/Hospital.API.csproj",
+        "--launch-profile",
+        "https"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run-ui",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/Hospital.UI/Hospital.UI.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}
