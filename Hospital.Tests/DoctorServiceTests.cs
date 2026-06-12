@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Hospital.BLL.DTO;
 using Hospital.BLL.Infrastructure;
 using Hospital.BLL.Services;

@@ -111,4 +111,12 @@ namespace Hospital.Tests
             _mockUow.Verify(u => u.Save(), Times.Once);
         }
     }
+}            _patientRepo.Setup(r => r.GetById(1)).Returns(new Patient { Id = 1, FirstName = "Петро", LastName = "Петров" });
+
+            _service.MakeAppointment(appointmentDto);
+
+            _appointmentRepo.Verify(r => r.Create(It.IsAny<Appointment>()), Times.Once);
+            _mockUoW.Verify(u => u.Save(), Times.Once);
+        }
+    }
 }
