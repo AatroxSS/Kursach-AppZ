@@ -12,7 +12,6 @@ namespace Hospital.DAL.EF
 
         public HospitalDbContext(DbContextOptions<HospitalDbContext> options) : base(options)
         {
-            // Рядок Database.EnsureCreated(); ВИДАЛЕНО, щоб працювали міграції
         }
     }
 }

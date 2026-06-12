@@ -8,7 +8,9 @@ namespace Hospital.DAL.Interfaces
     {
         IEnumerable<T> GetAll();
         T GetById(int id);
-        IEnumerable<T> Find(Expression<Func<T, bool>> predicate);
+
+        IEnumerable<T> Find(Expression<Func<T, bool>> predicate, params Expression<Func<T, object>>[] includes);
+
         void Create(T item);
         void Update(T item);
         void Delete(int id);

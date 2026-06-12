@@ -29,7 +29,6 @@ namespace Hospital.BLL.Services
             var user = _context.Users.Find(userId);
             if (user != null)
             {
-                // Використовуємо твій Enum Role
                 user.Role = Enum.Parse<Role>(newRole);
                 _context.SaveChanges();
             }
