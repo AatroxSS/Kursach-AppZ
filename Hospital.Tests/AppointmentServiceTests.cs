@@ -14,100 +14,112 @@ using Xunit;
 
 namespace Hospital.Tests
 {
-    public class AppointmentServiceTests
+    public class DoctorServiceTests
     {
         private readonly IMapper _mapper;
         private readonly Mock<IUnitOfWork> _mockUow;
-        private readonly Mock<IRepository<Appointment>> _mockAppointmentRepo;
         private readonly Mock<IRepository<Doctor>> _mockDoctorRepo;
-        private readonly Mock<IRepository<Patient>> _mockPatientRepo;
-        private readonly AppointmentService _appointmentService;
+        private readonly DoctorService _doctorService;
 
-        public AppointmentServiceTests()
+        public DoctorServiceTests()
         {
             var mapperConfig = new MapperConfiguration(
                 cfg => cfg.AddProfile(new HospitalMapperProfile()),
-                NullLoggerFactory.Instance
-            );
+                NullLoggerFactory.Instance);
             _mapper = mapperConfig.CreateMapper();
 
             _mockUow = new Mock<IUnitOfWork>();
-            _mockAppointmentRepo = new Mock<IRepository<Appointment>>();
             _mockDoctorRepo = new Mock<IRepository<Doctor>>();
-            _mockPatientRepo = new Mock<IRepository<Patient>>();
 
-            _mockUow.Setup(u => u.Appointments).Returns(_mockAppointmentRepo.Object);
             _mockUow.Setup(u => u.Doctors).Returns(_mockDoctorRepo.Object);
-            _mockUow.Setup(u => u.Patients).Returns(_mockPatientRepo.Object);
 
-            _appointmentService = new AppointmentService(_mockUow.Object, _mapper);
+            _doctorService = new DoctorService(_mockUow.Object, _mapper);
         }
 
         [Fact]
-        public void MakeAppointment_ValidData_CreatesAppointment()
+        public void GetAllDoctors_ReturnsMappedDoctors()
         {
             // Arrange
-            var validDate = DateTime.Now.AddDays(1);
-            var dto = new AppointmentDTO { DoctorId = 1, PatientId = 1, AppointmentDate = validDate };
-
-            _mockDoctorRepo.Setup(r => r.GetById(1)).Returns(new Doctor { Id = 1 });
-            _mockPatientRepo.Setup(r => r.GetById(1)).Returns(new Patient { Id = 1 });
-
-            _mockAppointmentRepo.Setup(r => r.Find(It.IsAny<Expression<Func<Appointment, bool>>>(), It.IsAny<Expression<Func<Appointment, object>>[]>()))
-                .Returns(new List<Appointment>());
+            var doctors = new List<Doctor> { new Doctor { Id = 1, Specialization = "Хірург" } };
+            _mockDoctorRepo.Setup(r => r.GetAll()).Returns(doctors);
 
             // Act
-            _appointmentService.MakeAppointment(dto);
+            var result = _doctorService.GetAllDoctors().ToList();
 
             // Assert
-            _mockAppointmentRepo.Verify(r => r.Create(It.Is<Appointment>(a => a.DoctorId == 1 && a.PatientId == 1)), Times.Once);
-            _mockUow.Verify(u => u.Save(), Times.Once);
+            Assert.Single(result);
         }
 
         [Fact]
-        public void MakeAppointment_PastDate_ThrowsValidationException()
+        public void FindDoctorsBySpecialization_ReturnsFilteredDoctors()
         {
             // Arrange
-            var pastDate = DateTime.Now.AddDays(-1);
-            var dto = new AppointmentDTO { AppointmentDate = pastDate };
+            var doctors = new List<Doctor>
+            {
+                new Doctor { Id = 1, Specialization = "Хірург" },
+                new Doctor { Id = 2, Specialization = "Терапевт" }
+            };
 
-            // Act & Assert
-            var ex = Assert.Throws<ValidationException>(() => _appointmentService.MakeAppointment(dto));
-            Assert.Equal("Неможливо записатися на дату в минулому", ex.Message);
-        }
-
-        [Fact]
-        public void MakeAppointment_TimeAlreadyTaken_ThrowsValidationException()
-        {
-            // Arrange
-            var validDate = DateTime.Now.AddDays(1);
-            var dto = new AppointmentDTO { DoctorId = 1, PatientId = 1, AppointmentDate = validDate };
-
-            _mockDoctorRepo.Setup(r => r.GetById(1)).Returns(new Doctor { Id = 1 });
-            _mockPatientRepo.Setup(r => r.GetById(1)).Returns(new Patient { Id = 1 });
-
-            _mockAppointmentRepo.Setup(r => r.Find(It.IsAny<Expression<Func<Appointment, bool>>>(), It.IsAny<Expression<Func<Appointment, object>>[]>()))
-                .Returns(new List<Appointment> { new Appointment { Id = 10 } });
-
-            // Act & Assert
-            var ex = Assert.Throws<ValidationException>(() => _appointmentService.MakeAppointment(dto));
-            Assert.Equal("Цей час у лікаря вже зайнятий", ex.Message);
-        }
-
-        [Fact]
-        public void CompleteAppointment_ValidId_UpdatesAppointment()
-        {
-            // Arrange
-            var appointment = new Appointment { Id = 1, IsCompleted = false };
-            _mockAppointmentRepo.Setup(r => r.GetById(1)).Returns(appointment);
+            _mockDoctorRepo.Setup(r => r.Find(It.IsAny<Expression<Func<Doctor, bool>>>(), It.IsAny<Expression<Func<Doctor, object>>[]>()))
+                .Returns((Expression<Func<Doctor, bool>> predicate, Expression<Func<Doctor, object>>[] includes) =>
+                    doctors.Where(predicate.Compile()).ToList());
 
             // Act
-            _appointmentService.CompleteAppointment(1, "Пацієнт здоровий");
+            var result = _doctorService.FindDoctorsBySpecialization("Хірург").ToList();
 
             // Assert
-            Assert.True(appointment.IsCompleted);
-            Assert.Equal("Пацієнт здоровий", appointment.Notes);
-            _mockAppointmentRepo.Verify(r => r.Update(appointment), Times.Once);
+            Assert.Single(result);
+            Assert.Equal("Хірург", result.First().Specialization);
+        }
+
+        [Fact]
+        public void GetDoctor_ValidId_ReturnsDoctor()
+        {
+            // Arrange
+            _mockDoctorRepo.Setup(r => r.GetById(1)).Returns(new Doctor { Id = 1 });
+
+            // Act
+            var result = _doctorService.GetDoctor(1);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(1, result.Id);
+        }
+
+        [Fact]
+        public void GetDoctor_InvalidId_ThrowsValidationException()
+        {
+            // Arrange
+            _mockDoctorRepo.Setup(r => r.GetById(99)).Returns((Doctor)null);
+
+            // Act & Assert
+            Assert.Throws<ValidationException>(() => _doctorService.GetDoctor(99));
+        }
+
+        [Theory]
+        [InlineData("", "Іванов")]
+        [InlineData("Іван", "")]
+        [InlineData(" ", "   ")]
+        public void AddDoctor_InvalidName_ThrowsValidationException(string firstName, string lastName)
+        {
+            // Arrange
+            var dto = new DoctorDTO { FirstName = firstName, LastName = lastName };
+
+            // Act & Assert
+            var ex = Assert.Throws<ValidationException>(() => _doctorService.AddDoctor(dto));
+            Assert.Equal("Ім'я та прізвище лікаря є обов'язковими", ex.Message);
+        }
+
+        [Fact]
+        public void AddDoctor_ValidData_CreatesAndSaves()
+        {
+            // Arrange
+            var dto = new DoctorDTO { FirstName = "Іван", LastName = "Іванов", Specialization = "ЛОР" };
+
+            // Act
+            _doctorService.AddDoctor(dto);
+            // Assert
+            _mockDoctorRepo.Verify(r => r.Create(It.IsAny<Doctor>()), Times.Once);
             _mockUow.Verify(u => u.Save(), Times.Once);
         }
     }
